@@ -1,0 +1,43 @@
+/* Inward2Onward design constants. Every color, font and spacing value for the page lives here. */
+:root {
+  /* Brand blues */
+  --i2o-blue: #3B82F6;        /* blue-500/600 primary */
+  --i2o-blue-light: #60A5FA;  /* blue-400 */
+  --i2o-blue-dark: #1D4ED8;   /* blue-700, used for buttons: white text passes WCAG AA */
+  --i2o-indigo: #6366F1;      /* indigo accent */
+  --i2o-indigo-dark: #4338CA; /* indigo-700, gradient end */
+
+  /* Neutrals */
+  --slate-50: #F8FAFC;   /* page background */
+  --slate-200: #E2E8F0;  /* borders */
+  --slate-600: #475569;  /* secondary text */
+  --slate-700: #334155;  /* body text */
+  --slate-800: #1E293B;  /* headings */
+  --white: #FFFFFF;
+
+  /* Status */
+  --success: #047857;    /* emerald-700, AA on white */
+  --error: #B91C1C;      /* red-700, AA on white */
+
+  /* Gradients */
+  --hero-gradient: linear-gradient(135deg, var(--i2o-blue-dark), var(--i2o-indigo-dark));
+  --page-gradient: linear-gradient(180deg, var(--slate-50), #EFF6FF);
+
+  /* Type */
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --text-base: 1rem;
+  --text-sm: 0.9rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.75rem;
+
+  /* Space and shape */
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 10px 30px rgba(30, 41, 59, 0.08);
+  --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.45);
+  --max-width: 640px;
+}
