@@ -34,8 +34,12 @@ index.html  --POST /api/submit (JSON)-->  functions/api/submit.js  (Cloudflare P
                                               v
                     Airtable automation "Save questions from the Questions for EJ page"
                          trigger: When webhook received
-                         step 1:  Create record in Questions (Status = New)
-                         step 2:  Send email to ai@inward2onward.com (reply-to = client)
+                         step:    Create record in Questions (Status = New)
+                                              |
+                                              v
+                    Airtable automation "Email EJ when a website question arrives"
+                         trigger: When a record is created in Questions
+                         step:    Send email to ai@inward2onward.com (reply-to = client)
 ```
 
 Today step 2 (the token) always fails, so every question goes through the webhook. That's expected, not an error.
@@ -61,11 +65,12 @@ New or changed variables only apply after the next deployment. Merging to `main`
 ### Airtable automations in Client Questions
 | Automation | Trigger | State | Notes |
 |---|---|---|---|
-| Save questions from the Questions for EJ page | Webhook from the website | **ON** | Creates the record and emails EJ. This is the one that matters |
-| Email EJ when a new question arrives | Airtable form `pagBHzdTxhqAPg9iy` | ON | Only fires for the Airtable form, not the website |
+| Save questions from the Questions for EJ page | Webhook from the website | **ON** | Creates the record. Without it, website questions are lost |
+| Email EJ when a website question arrives | Record created in Questions | **ON** | Emails EJ. Without it, nobody is told about new questions |
+| Email EJ when a new question arrives | Airtable form `pagBHzdTxhqAPg9iy` | ON | Only fires for the Airtable form. A question sent through that form sends two alerts, because the record-created automation also fires |
 | Acknowledge the client's question | Airtable form `pagBHzdTxhqAPg9iy` | ON | Sends the client a receipt, Airtable form only |
 
-**Airtable rule to remember:** when you edit an automation that is ON, the change stays a draft until you click **Update** in the Airtable editor's top bar.
+**Airtable rule to remember:** when an automation is ON, edits to it stay a draft until they are published in the Airtable editor. Airtable's help pages don't say exactly which button does this. To avoid it, add new behavior as a new automation and switch that one ON (the switch is in the editor's top bar, next to the word "Automations").
 
 ## 4. Standard operating procedures
 
@@ -88,12 +93,12 @@ The change is done only when all of steps 3 and 4 pass.
 |---|---|---|
 | Client sees "Your question did not go through" | Both save paths failed | Check `/api/health`. If `webhookUrlSet` is false, re-add the secret and redeploy. If true, check the automation is ON |
 | "Thank you" shows but no record appears | Automation is **OFF** (Airtable accepts the post and drops it) | Airtable > Automations > turn it ON |
-| Record appears but no email | Email step not published, or email filtered | Click **Update** on the automation. Check spam for sender "Questions for EJ". Check the automation's run history |
+| Record appears but no email | "Email EJ when a website question arrives" is OFF, or the email was filtered | Turn it ON. Check spam for sender "Questions for EJ". Open the automation's run history for a failure |
 | Airtable editor shows "Fix configuration" | A step with an empty required field was added | Remove that step or fill it in, then Update |
 | Webhook URL leaked | It was shared or committed | In the automation's trigger, re-create the webhook (this changes the URL), then update `AIRTABLE_WEBHOOK_URL` in Cloudflare and redeploy |
 
 ### 4.4 Changing the alert recipient
-Airtable > Client Questions > Automations > "Save questions from the Questions for EJ page" > **Send email** step > change **To** > click **Update**. Then run 4.1.
+Airtable > Client Questions > Automations > "Email EJ when a website question arrives" > **Send email** step > change **To**. Because the automation is ON, the edit must be published before it takes effect. If you can't find how, turn the automation OFF, make the edit, then turn it back ON. Then run 4.1.
 
 ## 5. Reference
 
@@ -104,13 +109,13 @@ Airtable > Client Questions > Automations > "Save questions from the Questions f
 
 ### IDs (not secret)
 - Base: `appViKsJKAMFDLBNO` (Client Questions). Table: `tbl1z3pxYBQU5bd8E` (Questions).
-- Automation: `wflSRXl91p6bqa859`.
+- Automations: save `wflSRXl91p6bqa859`, email `wflKZvAdMozzNoE5h`.
 - Fields: Client name `fld3WX6tHc3L02MVA`, Client email `fldTDx65QPEVosCXk`, Session date `fldUCtVvK22PQhOtu`, Question `fldRe7NIROgzL7glv`, Background `fldVIpEnA6Myamiim`, Status `fldSVCkMJoiKTiEKF` (New = `sel6SFUW6QcbasQeL`).
 
 ### Checklists
 **Developer, before calling a change done:** fallback tests pass locally, preview deploy succeeded on the PR, merged, `/api/health` shows the new version, live test 4.1 passed, test records deleted.
 
-**EJ, after changing anything in Airtable:** clicked Update, automation still ON, ran 4.1.
+**EJ, after changing anything in Airtable:** both website automations still ON, change published, ran 4.1.
 
 ## 6. Results
 
@@ -118,7 +123,7 @@ Airtable > Client Questions > Automations > "Save questions from the Questions f
 |---|---|---|
 | Live submission | `502 save_failed` | `200 ok`, thank-you shown |
 | Records saved | 0 | Every test saved with all fields and Status New |
-| EJ notified | Never | Email alert per question (see 4.1 for the verification) |
+| EJ notified | Never | Email per question. Airtable run history shows the send succeeded on the live test; delivery to the inbox is confirmed by EJ |
 | Secrets in public repo | None | None (webhook URL is a Cloudflare secret) |
 
 ## 7. Next steps
