@@ -76,8 +76,8 @@ New or changed variables only apply after the next deployment. Merging to `main`
 |---|---|---|---|
 | Save questions from the Questions for EJ page | Webhook from the website | **ON** | Creates the record. Without it, website questions are lost |
 | Email EJ when a website question arrives (v2) | Record created in Questions | **ON** | Emails EJ. Without it, nobody is told about new questions |
-| Email EJ when a website question arrives | Record created in Questions | **OFF** | Replaced by v2. Keep it off, or every question sends two emails |
-| Email EJ when a new question arrives | Airtable form `pagBHzdTxhqAPg9iy` | ON | Only fires for the Airtable form. A question sent through that form sends two alerts, because the record-created automation also fires |
+| OLD - TURN OFF - website email | Record created in Questions | **OFF** | Replaced by v2. Keep it off, or every question sends two emails |
+| Email EJ when a new question arrives | Airtable form `pagBHzdTxhqAPg9iy` | **OFF** | Not needed: v2 also emails EJ for questions sent through the Airtable form. Turning it on would send two alerts for those |
 | Acknowledge the client's question | Airtable form `pagBHzdTxhqAPg9iy` | ON | Sends the client a receipt, Airtable form only |
 
 **Airtable rule to remember:** when an automation is ON, edits to it stay a draft until they are published in the Airtable editor. Airtable's help pages don't say exactly which button does this. To avoid it, add new behavior as a new automation and switch that one ON (the switch is in the editor's top bar, next to the word "Automations").
