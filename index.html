@@ -19,6 +19,10 @@
     h1 { color: var(--slate-800); font-size: var(--text-xl); line-height: 1.25; margin: 0 0 var(--space-1); }
     .intro { margin: 0 0 var(--space-3); color: var(--slate-700); }
     .field { margin-bottom: var(--space-3); }
+    .consent { display: flex; gap: 0.75rem; align-items: flex-start; }
+    .consent input { width: 1.25rem; height: 1.25rem; margin: 0.2rem 0 0; flex: none; accent-color: var(--i2o-blue-dark); }
+    .consent label { font-weight: 400; color: var(--slate-800); margin: 0; }
+    .consent .help { margin: 0.25rem 0 0; }
     label { display: block; font-weight: 600; color: var(--slate-800); margin-bottom: 0.25rem; }
     .req { color: var(--error); margin-left: 2px; }
     .help { display: block; font-size: var(--text-sm); color: var(--slate-600); margin-bottom: var(--space-1); }
@@ -79,6 +83,13 @@
           <span class="help" id="bg-help">Optional. Add any details or examples that help explain your question.</span>
           <textarea id="background" name="background" maxlength="5000" aria-describedby="bg-help"></textarea>
         </div>
+        <div class="field consent">
+          <input id="okToEmail" name="okToEmail" type="checkbox" aria-describedby="consent-help">
+          <div>
+            <label for="okToEmail" id="consent-label">It's OK for EJ to email me about this question. I can ask him to stop at any time.</label>
+            <span class="help" id="consent-help">Optional. If you leave this unticked, I'll answer your question in our session.</span>
+          </div>
+        </div>
         <div class="hp" aria-hidden="true">
           <label for="website">Website</label>
           <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
@@ -133,6 +144,7 @@
       document.getElementById('another').addEventListener('click', function () {
         document.getElementById('question').value = '';
         document.getElementById('background').value = '';
+        document.getElementById('okToEmail').checked = false;
         statusEl.textContent = '';
         statusEl.className = 'status';
         btn.disabled = false;
@@ -158,6 +170,7 @@
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) { showError(document.getElementById('email'), MSG_EMAIL); return; }
         var data = {};
         new FormData(form).forEach(function (v, k) { data[k] = String(v).trim(); });
+        data.okToEmail = document.getElementById('okToEmail').checked;
         btn.disabled = true;
         btn.textContent = 'Sending';
         fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })

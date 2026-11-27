@@ -57,6 +57,15 @@ Today step 2 (the token) always fails, so every question goes through the webhoo
 - After sending: "Thank you. Your question came through. I'll look into it before our session." plus a **Send another question** button. The button keeps their name, email and date filled in and clears the question.
 - If saving fails: their words stay in the form, with a clickable link to email ej@inward2onward.com.
 
+### Email permission (added Nov 27, 2026)
+- The form has an **optional, unticked** checkbox: "It's OK for EJ to email me about this question. I can ask him to stop at any time." Under it: "Optional. If you leave this unticked, I'll answer your question in our session." **Send another question** unticks it again, so permission is given per question.
+- Airtable saves it in **OK to email** (checkbox) and **Permission wording** (the exact text agreed to). With **Date received**, that is the dated record of consent.
+- EJ's alert flags it in the subject and first line: "✅ OK to email" (Reply goes to the client) or "⛔ No email permission" (Reply comes back to EJ, the client's address is left out, and the email says to answer in the session).
+- **No automated email is ever sent to clients.** Clients see the thank-you screen; EJ replies personally only when OK to email is ticked. Reason: an Airtable "Unsubscribe" click suppresses the address for the whole base, can't be undone, and EJ isn't told (Airtable help article "Send email" action).
+- If a client asks EJ to stop emailing, untick **OK to email** on their records and don't email them again.
+- The old Resend code in `submit.js` (off while `EMAIL_ENABLED` is false) can only email a client whose box was ticked.
+- Why optional, not required (Nov 27 review of official sources; not legal advice, confirm with an attorney): CAN-SPAM covers commercial email and is opt-out based; CASL gives 6 months of implied consent after an inquiry and does not accept pre-ticked boxes; GDPR Art. 7 requires provable, withdrawable consent, and making a service conditional on consent weighs against it being freely given.
+
 ### Airtable column added for the email
 **Session date (written out)** is a formula that turns 2026-11-28 into "Saturday, November 28, 2026" for the email subject and body. It is automatic: don't edit or delete it, or the alert email loses its date.
 | `_headers` | Security headers |
@@ -76,8 +85,8 @@ New or changed variables only apply after the next deployment. Merging to `main`
 |---|---|---|---|
 | Save questions from the Questions for EJ page | Webhook from the website | **ON** | Creates the record. Without it, website questions are lost |
 | Email EJ when a website question arrives (v2) | Record created in Questions | **ON** | Emails EJ. Without it, nobody is told about new questions |
-| Email EJ when a website question arrives | Record created in Questions | **OFF** | Replaced by v2. Keep it off, or every question sends two emails |
-| Email EJ when a new question arrives | Airtable form `pagBHzdTxhqAPg9iy` | ON | Only fires for the Airtable form. A question sent through that form sends two alerts, because the record-created automation also fires |
+| OLD - TURN OFF - website email | Record created in Questions | **OFF** | Replaced by v2. Keep it off, or every question sends two emails |
+| Email EJ when a new question arrives | Airtable form `pagBHzdTxhqAPg9iy` | **OFF** | Not needed: v2 also emails EJ for questions sent through the Airtable form. Turning it on would send two alerts for those |
 | Acknowledge the client's question | Airtable form `pagBHzdTxhqAPg9iy` | ON | Sends the client a receipt, Airtable form only |
 
 **Airtable rule to remember:** when an automation is ON, edits to it stay a draft until they are published in the Airtable editor. Airtable's help pages don't say exactly which button does this. To avoid it, add new behavior as a new automation and switch that one ON (the switch is in the editor's top bar, next to the word "Automations").
@@ -122,7 +131,7 @@ Airtable > Client Questions > Automations > "Email EJ when a website question ar
 ### IDs (not secret)
 - Base: `appViKsJKAMFDLBNO` (Client Questions). Table: `tbl1z3pxYBQU5bd8E` (Questions).
 - Automations: save `wflSRXl91p6bqa859`, email v2 `wflsfkaggZiZzuNjZ`, old email (off) `wflKZvAdMozzNoE5h`.
-- Field: Session date (written out) `fld333nmRl244dcX3`.
+- Fields: Session date (written out) `fld333nmRl244dcX3`, OK to email `fldNZ0Ixpwcu1MvTD`, Permission wording `fld9LALaz63Rz0got`.
 - Fields: Client name `fld3WX6tHc3L02MVA`, Client email `fldTDx65QPEVosCXk`, Session date `fldUCtVvK22PQhOtu`, Question `fldRe7NIROgzL7glv`, Background `fldVIpEnA6Myamiim`, Status `fldSVCkMJoiKTiEKF` (New = `sel6SFUW6QcbasQeL`).
 
 ### Checklists

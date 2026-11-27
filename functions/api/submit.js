@@ -14,7 +14,11 @@ const F = {
   sessionDate: 'fldUCtVvK22PQhOtu',
   question: 'fldRe7NIROgzL7glv',
   background: 'fldVIpEnA6Myamiim',
+  okToEmail: 'fldNZ0Ixpwcu1MvTD',
+  permissionText: 'fld9LALaz63Rz0got',
 };
+// Must match the checkbox label in index.html word for word. Saved with each record as proof of consent.
+export const PERMISSION_TEXT = "It's OK for EJ to email me about this question. I can ask him to stop at any time.";
 const EJ_EMAIL = 'ej@inward2onward.com';
 const FROM = 'EJ Steele <ej@inward2onward.com>';
 
@@ -39,7 +43,9 @@ export function validate(body) {
     sessionDate: clean(body.sessionDate, 10),
     question: clean(body.question, 5000),
     background: clean(body.background, 5000),
+    okToEmail: body.okToEmail === true,
   };
+  d.permissionText = d.okToEmail ? PERMISSION_TEXT : '';
   if (!d.name || !d.question) return { error: 'missing' };
   if (!EMAIL_RE.test(d.email)) return { error: 'email' };
   if (!DATE_RE.test(d.sessionDate) || isNaN(Date.parse(d.sessionDate))) return { error: 'date' };
@@ -50,6 +56,8 @@ async function saveToAirtable(env, d) {
   const api = env.AIRTABLE_API_URL || 'https://api.airtable.com';
   const fields = { [F.name]: d.name, [F.email]: d.email, [F.sessionDate]: d.sessionDate, [F.question]: d.question };
   if (d.background) fields[F.background] = d.background;
+  fields[F.okToEmail] = d.okToEmail;
+  if (d.permissionText) fields[F.permissionText] = d.permissionText;
   const r = await fetch(`${api}/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
@@ -64,7 +72,7 @@ async function saveViaWebhook(env, d) {
   const r = await fetch(env.AIRTABLE_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: d.name, email: d.email, sessionDate: d.sessionDate, question: d.question, background: d.background || '' }),
+    body: JSON.stringify({ name: d.name, email: d.email, sessionDate: d.sessionDate, question: d.question, background: d.background || '', okToEmail: d.okToEmail ? 'true' : 'false', permissionText: d.permissionText }),
   });
   const text = await r.text();
   if (!r.ok || !/"success"\s*:\s*true/.test(text)) throw new Error(`webhook ${r.status} ${text}`);
@@ -127,10 +135,10 @@ export async function onRequestPost({ request, env }) {
   const emailOn = env.EMAIL_ENABLED === 'true' && !!env.RESEND_API_KEY;
   if (emailOn) {
     const d = v.data;
-    const results = await Promise.allSettled([
-      sendEmail(env, { from: FROM, to: [d.email], reply_to: EJ_EMAIL, subject: 'Your question for EJ', text: receiptText(d) }),
-      sendEmail(env, { from: FROM, to: [EJ_EMAIL], reply_to: d.email, subject: `New question from ${d.name}`, text: alertText(d, recordId) }),
-    ]);
+    // Never email a client who did not tick the permission box.
+    const sends = [sendEmail(env, { from: FROM, to: [EJ_EMAIL], reply_to: d.okToEmail ? d.email : EJ_EMAIL, subject: `New question from ${d.name}`, text: alertText(d, recordId) })];
+    if (d.okToEmail) sends.push(sendEmail(env, { from: FROM, to: [d.email], reply_to: EJ_EMAIL, subject: 'Your question for EJ', text: receiptText(d) }));
+    const results = await Promise.allSettled(sends);
     results.forEach((r) => { if (r.status === 'rejected') console.error('email failed', r.reason && r.reason.message); });
   }
 
