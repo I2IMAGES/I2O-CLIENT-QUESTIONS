@@ -34,7 +34,11 @@
     .status { margin-top: var(--space-2); font-weight: 600; }
     .status.error { color: var(--error); }
     .done { text-align: center; padding: var(--space-3) 0; }
-    .done p { font-size: var(--text-lg); color: var(--success); font-weight: 600; margin: 0; }
+    .done p { margin: 0; }
+    .done .done-title { font-size: var(--text-lg); color: var(--success); font-weight: 600; }
+    .done .done-next { margin-top: var(--space-1); color: var(--slate-700); }
+    .done button { margin-top: var(--space-3); width: auto; }
+    .status a { color: inherit; }
     footer { text-align: center; font-size: var(--text-sm); color: var(--slate-600); padding: 0 var(--space-2) var(--space-4); }
     footer p { margin: 0.25rem 0; }
     footer a { color: var(--i2o-blue-dark); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
@@ -84,7 +88,9 @@
       </form>
 
       <div class="done" id="done" hidden>
-        <p tabindex="-1" id="done-msg">Thank you. Your question came through.</p>
+        <p class="done-title" tabindex="-1" id="done-msg">Thank you. Your question came through.</p>
+        <p class="done-next">I'll look into it before our session.</p>
+        <button type="button" id="another">Send another question</button>
       </div>
     </div>
   </main>
@@ -99,19 +105,57 @@
       var statusEl = document.getElementById('status');
       var btn = document.getElementById('send');
       var MSG_MISSING = 'Please fill in every field marked with a star.';
-      var MSG_FAILED = 'Your question did not go through. Your words are still here, so please try again. If it keeps happening, you can email me at ej@inward2onward.com.';
+      var MSG_EMAIL = 'Please check your email address. It should look like name@example.com.';
+      var MSG_DATE = 'Please pick the date of your session. It should be today or later.';
+      var dateEl = document.getElementById('sessionDate');
+
+      // The session date can't be in the past (uses the client's own date).
+      var now = new Date();
+      dateEl.min = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+      function showError(el, msg) {
+        statusEl.textContent = msg;
+        statusEl.className = 'status error';
+        if (el) el.focus();
+      }
+
+      function showFailed() {
+        statusEl.textContent = '';
+        statusEl.appendChild(document.createTextNode('Your question did not go through. Your words are still here, so please try again. If it keeps happening, you can email me at '));
+        var a = document.createElement('a');
+        a.href = 'mailto:ej@inward2onward.com';
+        a.textContent = 'ej@inward2onward.com';
+        statusEl.appendChild(a);
+        statusEl.appendChild(document.createTextNode('.'));
+        statusEl.className = 'status error';
+      }
+
+      document.getElementById('another').addEventListener('click', function () {
+        document.getElementById('question').value = '';
+        document.getElementById('background').value = '';
+        statusEl.textContent = '';
+        statusEl.className = 'status';
+        btn.disabled = false;
+        btn.textContent = 'Send question';
+        document.getElementById('done').hidden = true;
+        form.hidden = false;
+        document.getElementById('question').focus();
+      });
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         statusEl.textContent = '';
         statusEl.className = 'status';
         if (!form.checkValidity()) {
-          statusEl.textContent = MSG_MISSING;
-          statusEl.className = 'status error';
           var bad = form.querySelector(':invalid');
-          if (bad) bad.focus();
+          if (bad.validity.valueMissing) showError(bad, MSG_MISSING);
+          else if (bad.id === 'email') showError(bad, MSG_EMAIL);
+          else if (bad.id === 'sessionDate') showError(bad, MSG_DATE);
+          else showError(bad, MSG_MISSING);
           return;
         }
+        var emailVal = document.getElementById('email').value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) { showError(document.getElementById('email'), MSG_EMAIL); return; }
         var data = {};
         new FormData(form).forEach(function (v, k) { data[k] = String(v).trim(); });
         btn.disabled = true;
@@ -125,8 +169,7 @@
             document.getElementById('done-msg').focus();
           })
           .catch(function () {
-            statusEl.textContent = MSG_FAILED;
-            statusEl.className = 'status error';
+            showFailed();
             btn.disabled = false;
             btn.textContent = 'Send question';
           });

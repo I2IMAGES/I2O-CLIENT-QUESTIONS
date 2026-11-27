@@ -37,9 +37,10 @@ index.html  --POST /api/submit (JSON)-->  functions/api/submit.js  (Cloudflare P
                          step:    Create record in Questions (Status = New)
                                               |
                                               v
-                    Airtable automation "Email EJ when a website question arrives"
+                    Airtable automation "Email EJ when a website question arrives (v2)"
                          trigger: When a record is created in Questions
-                         step:    Send email to ai@inward2onward.com (reply-to = client)
+                         step:    If Background is blank, send the short email; otherwise the
+                                  email with Background. To ai@inward2onward.com, reply-to = client
 ```
 
 Today step 2 (the token) always fails, so every question goes through the webhook. That's expected, not an error.
@@ -50,6 +51,14 @@ Today step 2 (the token) always fails, so every question goes through the webhoo
 | `index.html`, `design.css` | The form and its styling |
 | `functions/api/submit.js` | Validates and saves a question. Token first, webhook second |
 | `functions/api/health.js` | Read-only setup check at `/api/health`. Never returns a secret |
+
+### What the client sees
+- A separate message for each problem: a missing required field, an email address that isn't valid (same rule as the server: something@something.something), or a session date in the past. The cursor jumps to the field that needs fixing.
+- After sending: "Thank you. Your question came through. I'll look into it before our session." plus a **Send another question** button. The button keeps their name, email and date filled in and clears the question.
+- If saving fails: their words stay in the form, with a clickable link to email ej@inward2onward.com.
+
+### Airtable column added for the email
+**Session date (written out)** is a formula that turns 2026-11-28 into "Saturday, November 28, 2026" for the email subject and body. It is automatic: don't edit or delete it, or the alert email loses its date.
 | `_headers` | Security headers |
 
 ### Cloudflare settings (Workers & Pages > i2o-client-questions > Settings > Variables and Secrets > Production)
@@ -66,7 +75,8 @@ New or changed variables only apply after the next deployment. Merging to `main`
 | Automation | Trigger | State | Notes |
 |---|---|---|---|
 | Save questions from the Questions for EJ page | Webhook from the website | **ON** | Creates the record. Without it, website questions are lost |
-| Email EJ when a website question arrives | Record created in Questions | **ON** | Emails EJ. Without it, nobody is told about new questions |
+| Email EJ when a website question arrives (v2) | Record created in Questions | **ON** | Emails EJ. Without it, nobody is told about new questions |
+| Email EJ when a website question arrives | Record created in Questions | **OFF** | Replaced by v2. Keep it off, or every question sends two emails |
 | Email EJ when a new question arrives | Airtable form `pagBHzdTxhqAPg9iy` | ON | Only fires for the Airtable form. A question sent through that form sends two alerts, because the record-created automation also fires |
 | Acknowledge the client's question | Airtable form `pagBHzdTxhqAPg9iy` | ON | Sends the client a receipt, Airtable form only |
 
@@ -93,12 +103,14 @@ The change is done only when all of steps 3 and 4 pass.
 |---|---|---|
 | Client sees "Your question did not go through" | Both save paths failed | Check `/api/health`. If `webhookUrlSet` is false, re-add the secret and redeploy. If true, check the automation is ON |
 | "Thank you" shows but no record appears | Automation is **OFF** (Airtable accepts the post and drops it) | Airtable > Automations > turn it ON |
-| Record appears but no email | "Email EJ when a website question arrives" is OFF, or the email was filtered | Turn it ON. Check spam for sender "Questions for EJ". Open the automation's run history for a failure |
+| Record appears but no email | "Email EJ when a website question arrives (v2)" is OFF, the email was filtered, or someone clicked **Unsubscribe** in an alert | Turn it ON. Check spam for sender "Questions for EJ". Open the automation's run history for a failure |
 | Airtable editor shows "Fix configuration" | A step with an empty required field was added | Remove that step or fill it in, then Update |
 | Webhook URL leaked | It was shared or committed | In the automation's trigger, re-create the webhook (this changes the URL), then update `AIRTABLE_WEBHOOK_URL` in Cloudflare and redeploy |
 
+**Never click "Unsubscribe" in an alert email.** Airtable adds that link and the "mailing list" banner to every automation email, and they can't be removed. Clicking it stops the alerts with no warning.
+
 ### 4.4 Changing the alert recipient
-Airtable > Client Questions > Automations > "Email EJ when a website question arrives" > **Send email** step > change **To**. Because the automation is ON, the edit must be published before it takes effect. If you can't find how, turn the automation OFF, make the edit, then turn it back ON. Then run 4.1.
+Airtable > Client Questions > Automations > "Email EJ when a website question arrives (v2)" > both **Send email** steps (one for blank Background, one for filled in) > change **To**. Because the automation is ON, the edit must be published before it takes effect. If you can't find how, turn the automation OFF, make the edit, then turn it back ON. Then run 4.1.
 
 ## 5. Reference
 
@@ -109,7 +121,8 @@ Airtable > Client Questions > Automations > "Email EJ when a website question ar
 
 ### IDs (not secret)
 - Base: `appViKsJKAMFDLBNO` (Client Questions). Table: `tbl1z3pxYBQU5bd8E` (Questions).
-- Automations: save `wflSRXl91p6bqa859`, email `wflKZvAdMozzNoE5h`.
+- Automations: save `wflSRXl91p6bqa859`, email v2 `wflsfkaggZiZzuNjZ`, old email (off) `wflKZvAdMozzNoE5h`.
+- Field: Session date (written out) `fld333nmRl244dcX3`.
 - Fields: Client name `fld3WX6tHc3L02MVA`, Client email `fldTDx65QPEVosCXk`, Session date `fldUCtVvK22PQhOtu`, Question `fldRe7NIROgzL7glv`, Background `fldVIpEnA6Myamiim`, Status `fldSVCkMJoiKTiEKF` (New = `sel6SFUW6QcbasQeL`).
 
 ### Checklists
@@ -132,7 +145,7 @@ Airtable > Client Questions > Automations > "Email EJ when a website question ar
 - Questions sent before Nov 27 are not recoverable from the system. Check the inward2onward.com inbox for clients who emailed after seeing the error.
 
 **Short term**
-- Decide whether clients should get a receipt email from the website too (the Airtable-form automation "Acknowledge the client's question" does this for the Airtable form only).
+- Decide whether clients should get a receipt email from the website too. Not built: it would send email to clients, which EJ asked to keep off until reconfirmed. (The Airtable-form automation "Acknowledge the client's question" does this for the Airtable form only).
 - Replace or delete the refused `AIRTABLE_TOKEN` so the setup check stops reporting a 403. Optional: the site works without it.
 
 **Long term**
