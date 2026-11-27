@@ -12,6 +12,7 @@ export async function onRequestGet({ env }) {
     airtableTokenSet: !!env.AIRTABLE_TOKEN,
     resendKeySet: !!env.RESEND_API_KEY,
     emailEnabled: env.EMAIL_ENABLED === 'true',
+    webhookUrlSet: !!env.AIRTABLE_WEBHOOK_URL,
   };
   if (env.AIRTABLE_TOKEN) {
     const auth = { Authorization: `Bearer ${env.AIRTABLE_TOKEN.trim()}` };

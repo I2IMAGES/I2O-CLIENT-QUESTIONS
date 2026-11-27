@@ -1,7 +1,10 @@
 // Cloudflare Pages Function for POST /api/submit.
 // Saves a client question to the Client Questions base in Airtable, then (only when
 // EMAIL_ENABLED is "true") sends the client receipt and EJ's alert through Resend.
-// Secrets come only from Cloudflare Pages environment variables: AIRTABLE_TOKEN, RESEND_API_KEY.
+// Secrets come only from Cloudflare Pages environment variables: AIRTABLE_TOKEN, RESEND_API_KEY,
+// AIRTABLE_WEBHOOK_URL. If the token is missing or Airtable refuses it, the question goes to the
+// Airtable automation "Save questions from the Questions for EJ page" through its webhook
+// (AIRTABLE_WEBHOOK_URL), which creates the same record. Keep that URL out of this public repo.
 
 const AIRTABLE_BASE = 'appViKsJKAMFDLBNO';
 const AIRTABLE_TABLE = 'tbl1z3pxYBQU5bd8E';
@@ -57,12 +60,22 @@ async function saveToAirtable(env, d) {
   return j.records && j.records[0] && j.records[0].id;
 }
 
+async function saveViaWebhook(env, d) {
+  const r = await fetch(env.AIRTABLE_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: d.name, email: d.email, sessionDate: d.sessionDate, question: d.question, background: d.background || '' }),
+  });
+  const text = await r.text();
+  if (!r.ok || !/"success"\s*:\s*true/.test(text)) throw new Error(`webhook ${r.status} ${text}`);
+}
+
 export function receiptText(d) {
   return `Hi ${d.name},\n\nYour question came through. I'll look into it.\n\nHere is what you sent:\n\n${d.question}\n\nYou can reply to this email to reach me.\n\nEJ`;
 }
 
 export function alertText(d, recordId) {
-  return `${d.name} sent a question for the session on ${d.sessionDate}.\n\nTheir email: ${d.email}\n\nQuestion\n\n${d.question}\n\nBackground\n\n${d.background || '(none)'}\n\nIt is waiting under the New tab in Question Desk. Record: https://airtable.com/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${recordId}`;
+  return `${d.name} sent a question for the session on ${d.sessionDate}.\n\nTheir email: ${d.email}\n\nQuestion\n\n${d.question}\n\nBackground\n\n${d.background || '(none)'}\n\nIt is waiting under the New tab in Question Desk. ${recordId ? `Record: https://airtable.com/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${recordId}` : `Table: https://airtable.com/${AIRTABLE_BASE}/${AIRTABLE_TABLE}`}`;
 }
 
 async function sendEmail(env, payload) {
@@ -86,18 +99,30 @@ export async function onRequestPost({ request, env }) {
   const v = validate(body);
   if (v.error) return json(400, { ok: false, error: v.error });
 
-  if (!env.AIRTABLE_TOKEN) {
-    console.error('AIRTABLE_TOKEN is not set');
+  if (!env.AIRTABLE_TOKEN && !env.AIRTABLE_WEBHOOK_URL) {
+    console.error('Neither AIRTABLE_TOKEN nor AIRTABLE_WEBHOOK_URL is set');
     return json(503, { ok: false, error: 'not_configured' });
   }
 
-  let recordId;
-  try {
-    recordId = await saveToAirtable(env, v.data);
-  } catch (e) {
-    console.error('save failed', e.message);
-    return json(502, { ok: false, error: 'save_failed' });
+  let recordId = null;
+  let saved = false;
+  if (env.AIRTABLE_TOKEN) {
+    try {
+      recordId = await saveToAirtable(env, v.data);
+      saved = true;
+    } catch (e) {
+      console.error('token save failed', e.message);
+    }
   }
+  if (!saved && env.AIRTABLE_WEBHOOK_URL) {
+    try {
+      await saveViaWebhook(env, v.data);
+      saved = true;
+    } catch (e) {
+      console.error('webhook save failed', e.message);
+    }
+  }
+  if (!saved) return json(502, { ok: false, error: 'save_failed' });
 
   const emailOn = env.EMAIL_ENABLED === 'true' && !!env.RESEND_API_KEY;
   if (emailOn) {
